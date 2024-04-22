@@ -9,7 +9,7 @@ Pour mieux illustrer notre travail, voici une vidéo expliquant notre topologie 
 
 Cliquez sur la photo pour accéder à la vidéo.
 
-[![Cliquer ici](https://drive.google.com/file/d/1cD681--Hl3blfzdElXJZmgP0NES6uSXZ/view?usp=sharing)](https://drive.google.com/file/d/1T1FXtQd2KoHlaDzAgP696iVI3WmNipq7/view?usp=sharing)
+[![Cliquer ici](https://github.com/bfaycal197/Enterprise-Network-on-GNS3/issues/2)](https://drive.google.com/file/d/1T1FXtQd2KoHlaDzAgP696iVI3WmNipq7/view?usp=sharing)
 
 
 ## Installation
