@@ -4,7 +4,7 @@
 Ce projet comporte la réalisation d'un réseau d'entreprise sur GNS3, comprenant un campus, un centre de données, des zones démilitarisées (DMZ) et des fournisseurs d'accès Internet.
 
 Pour mieux illustrer notre travail, voici une vidéo expliquant notre topologie et son fonctionnement. 
-<iframe width="560" height="315" src="https://drive.google.com/file/d/1T1FXtQd2KoHlaDzAgP696iVI3WmNipq7/view?usp=sharing" frameborder="0" allowfullscreen></iframe>
+[![Cliquer ici](https://github.com/bfaycal197/Enterprise-Network-on-GNS3/issues/1#issue-2255359837)](https://drive.google.com/file/d/1T1FXtQd2KoHlaDzAgP696iVI3WmNipq7/view?usp=sharing)
 
 
 ## Installation
