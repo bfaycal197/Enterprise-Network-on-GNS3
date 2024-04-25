@@ -2,6 +2,7 @@
 # Enterprise Network on GNS3
 
 Ce projet comporte la réalisation d'un réseau d'entreprise sur GNS3, comprenant un campus, un centre de données, des zones démilitarisées (DMZ) et des fournisseurs d'accès Internet.
+- [Cliquez ici](https://drive.google.com/drive/folders/1ugKcUc5B6UMvUCEcy70yb3AVIZKC3uNf?usp=sharing) - pour télécharger la topologie.
 
 Pour mieux illustrer notre travail, voici une vidéo expliquant notre topologie et son fonctionnement. 
 
