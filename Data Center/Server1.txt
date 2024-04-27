@@ -1,0 +1,413 @@
+2. Server1 Configuration
+
+2.1 After Installation Steps
+
+The Server1 is running Ubuntu 16.04.3 LTS Xenial. Once Ubuntu is installed, we will fetch the list of available updates and upgrade the current packages with the commands below.
+
+
+$ sudo su
+# apt-get update && apt-get upgrade
+
+I prefer Vim editor to the default installed Nano editor. We can install Vim with the command.
+
+# apt-get install vim
+
+Change the hostname and add a pair hostname and an IP address 127.0.0.1 into the file /etc/hosts.
+
+# vi /etc/hostname
+Server1
+
+# echo "127.0.1.1 Server1" >> /etc/hosts
+
+After reboot, the hostname is changed to Server1. Now configure Ubuntu to display a security banner for SSH connections.
+
+# vi /etc/issue.net
+
+Welcome to Server1
+All connections are monitored and recorded
+Disconnect IMMEDIATELY if you are not an authorized user!
+
+Edit a configuration file of OpenSSH sever. Uncomment a line starting with a keyword #Banner.
+
+# vi /etc/ssh/sshd_config
+Banner /etc/issue.net
+
+Restart SSH service.
+
+# systemctl restart ssh
+
+2.2. Redirecting VGA Output to Serial Port
+
+Server1 appliance is running inside GNS3 topology. GNS3 supports a serial console for connection to a serial port of an appliance. To use a console for Server1, we are going to reconfigure Ubuntu to redirect VGA output to a serial port. Afterwards we can easily connect to his serial port with a right click on the appliance and select Console from the list. Below is a minimal configuration of Ubuntu for redirection of VGA to the serial port.
+
+$ sudo su
+# vi /lib/systemd/system/ttyS0.service
+
+[Unit]
+Description=Serial Console Service
+
+[Service]
+ExecStart=/sbin/getty -L 115200 ttyS0 vt102
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+
+Now reload systemd manager configuration and enable ttyS0 service. Then start ttyS0 service.
+
+# systemctl daemon-reload
+# systemctl enable ttyS0
+# systemctl start ttyS0
+
+Reboot the Server1 and connect to its serial port with GNS3.
+
+2.3 Interfaces and Bonding Configuration
+
+First, we need to load a bonding module to Linux kernel.
+
+$ sudo su
+# modprobe bonding
+
+Check if the module is loaded into the kernel.
+
+# lsmod | grep bond
+bonding 139264 0
+
+Configure the kernel to load the bonding module after reboot.
+
+# echo "bonding" >> /etc/modules
+
+Check available interfaces with the ifconfig -a command. They are three Ethernet interfaces presented - bond0, ens3 and ens4. Let's add interfaces ens3 and ens4 to bond0 interface and configure IP address on the bond0. Edit the configuration file  /etc/network/interfaces as it is shown here. Afterwards check status of bonding with the command below.
+
+
+The bonding mode is set to 0 - load balancing and round robin. This is default mode that provides load balancing and fault tolerance.
+
+2.4 Forwarding DNS Server Using Bind
+
+Forwarding Domain Name System (DNS) server forwards DNS requests to an outside resolving server and then caches the results to use for later queries. We install and configure Bind that will forward DNS queries to se Google public DNS servers.
+
+Note: The configuration file /etc/bind/named.conf.options is here.
+
+2.4.1 Install Bind Server Packages
+
+$ sudo apt-get update
+# sudo apt-get install bind9 bind9-doc
+
+2.4.2 Bind Configuration
+
+a) Define Access-List For Clients
+
+Create an access-list which identifies the clients allowed to access DNS server. The access-list should list all the clients' IP subnets.  First, modify the Bind configuration file below. All the following configuration changes will be done inside this file. Put the lines below above the line beginning with the options block.
+
+# vi /etc/bind/named.conf.options
+
+acl ourclients {
+ 10.0.0.0/24;
+ 10.1.1.0/24;
+ 192.168.10.0/24;
+ 192.168.20.0/24;
+ 192.168.30.0/24;
+ 192.168.30.0/24;
+ 172.16.0.0/24;
+ 172.16.50.0/24;
+ localhost;
+ localnets;
+};
+
+b) Allow Recursion and Query
+
+Allow recursion and configure a parameter allow-query referring to the access-list for our clients. But the lines bellow inside the option block.
+
+recursion yes;
+allow-query {
+ourclients;
+};
+
+c) Configure Forwarders
+
+We need to provide Google public recursive name servers IP addresses 8.8.8.8 and 8.8.4.4. Change the forwarders block as following.
+
+forwarders {
+8.8.8.8;
+8.8.4.4;
+};
+
+To configure recursive name servers, add the following line below into the forwarders block. DNS server will forward request to Google DNS public servers instead of trying to resolve queries by itself.
+
+forward only;
+
+d) Enable DNSsec
+
+Enable DNSsec. Change the line dnssec-validation no to dnssec-validation yes and add the line dnssec-enable yes.
+
+dnssec-enable yes;
+dnssec-validation yes;
+
+Check the configuration file for errors with the command below. If there is not an error, the output is blank.
+
+# named-checkconf
+
+Alternatively, inspect /var/log/syslog for errors.
+
+e) Logging Queries
+
+Create a directory /var/log/named  that stores Bind log messages and change owner and group to bind.
+
+# mkdir /var/log/named/
+# chown bind:bind /var/log/named/
+
+Add the following commands at the end of /etc/bind/named.conf.options
+
+logging {
+ channel query_log {
+  file "/var/log/named/bind.log" versions 3 size 5m;
+  severity info;
+  print-time yes;
+  print-severity yes;
+  print-category yes;
+ };
+ category queries {
+  query_log;
+ };
+};
+
+Then add the line querylog yes to the option block.
+
+querylog yes;
+
+Check configuration again with the command below and restart Bind.
+
+# named-checkconf
+# systemctl restart bind9
+
+The log file /var/log/named/bind.log should now contain DNS queries.
+
+
+2.5 Network Time Protocol Server Installation and Configuration
+
+NTP server provides precise time for the hosts and network devices. It is running on Server1. Here is the configuration file /etc/ntp.conf.
+
+2.5.1 Install NTP Daemon and Utilities Package
+
+$ sudo apt-get install ntp
+
+2.5.2 NTP Client Configuration
+
+$ sudo su
+# vi /etc/ntp.conf
+
+a) Specify NTP Public Servers
+
+Comment out the the following lines and specify NTP servers near to you. These are the default pre-configured public NTP servers.
+
+#pool 0.ubuntu.pool.ntp.org iburst
+#pool 1.ubuntu.pool.ntp.org iburst
+#pool 2.ubuntu.pool.ntp.org iburst
+#pool 3.ubuntu.pool.ntp.org iburst
+
+#pool ntp.ubuntu.com
+
+# Add the following lines.
+
+server 0.sk.pool.ntp.org
+server 1.europe.pool.ntp.org
+server 3.europe.pool.ntp.org
+
+b) Restrict Access of Public NTP Servers to our NTP Server
+
+restrict -4 default kod nomodify notrap nopeer noquery
+restrict -6 default kod nomodify notrap nopeer noquery
+
+Time will be synchronized with public NTP server but the servers are not allowed to modify the run-time configuration or query our Linux NTP server.
+
+c) Allow Our Hots to Query Time With Our NTP server
+
+Add the following lines.
+
+restrict 10.1.1.0 mask 255.255.255.0 nomodify notrap
+restrict 172.16.0.0 mask 255.255.255.0 nomodify notrap
+restrict 10.0.0.0 mask 255.0.0.0 nomodify notrap
+restrict 192.168.0.0 mask 255.255.0.0 nomodify notrap
+
+Restart NTP service and check status of time synchronization.
+
+# systemctl restart ntp
+
+Use the  ntpq utility to monitor NTP daemon ntpd operations.
+
+root@Server1:/home/ubuntu# ntpq -p
+
+
+The actual time can be checked with the date command.
+
+root@Server1:/home/ubuntu# date
+Thu Apr 6 11:04:42 CEST 2017
+
+2.6 DHCP Server Installation and Configuration
+
+We need to run DHCP server on Server1 as we want hosts in the end-user networks (192.168.10-30.x/24 ) and the network 172.16.50.0/24 to obtain their IP addresses automatically. In order to get this configuration working the command ip helper-address 172.16.50.1 must be configured under SVI 10, 20 and 30 configuration. We have already done it in Part3.
+
+Install ISC DHCP server for automatic IP address assignment for clients on the subnets 192.168.x.0/24 and 172.16.50.0/24.
+
+$ sudo apt-get install isc-dhcp-server
+
+Add the lines below into DHCP configuration file /etc/dhcp/dhcpd.conf.  The configuration file is here.
+
+# vi /etc/dhcp/dhcpd.conf
+
+option domain-name "mycompany.sk";
+
+default-lease-time 600;
+max-lease-time 7200;
+
+subnet 172.16.50.0 netmask 255.255.255.0 {
+ range 172.16.50.1 172.16.50.1;
+ option routers 172.16.50.254;
+ option subnet-mask 255.255.255.0;
+ option broadcast-address 172.16.50.255;
+ option domain-name-servers 172.16.50.1;
+ option ntp-servers 172.16.50.1;
+}
+subnet 192.168.10.0 netmask 255.255.255.0 {
+ range 192.168.10.1 192.168.10.240;
+ option routers 192.168.10.254;
+ option subnet-mask 255.255.255.0;
+ option broadcast-address 192.168.10.255;
+ option domain-name-servers 172.16.50.1;
+ option ntp-servers 172.16.50.1;
+}
+
+subnet 192.168.20.0 netmask 255.255.255.0 {
+ range 192.168.20.1 192.168.20.240;
+ option routers 192.168.20.254;
+ option subnet-mask 255.255.255.0;
+ option broadcast-address 192.168.20.255;
+ option domain-name-servers 172.16.50.1;
+ option ntp-servers 172.16.50.1;
+}
+
+subnet 192.168.30.0 netmask 255.255.255.0 {
+ range 192.168.30.1 192.168.30.240;
+ option routers 192.168.30.254;
+ option subnet-mask 255.255.255.0;
+ option broadcast-address 192.168.30.255;
+ option domain-name-servers 172.16.50.1;
+ option ntp-servers 172.16.50.1;
+}
+
+Now we need to specify the interface, DHCP should listen to. Add the interface  bond0 to the file /etc/default/isc-dhcp-server. Also check if the path to DHCP configuration file /etc/dhcp/dhcpd.conf is correct.
+
+# vi /etc/default/isc-dhcp-server
+
+DHCPD_CONF=/etc/dhcp/dhcpd.conf
+
+INTERFACES="bond0"
+
+Now we can enable and start DHCP service. Leased IP addresses are stored in the file /var/lib/dhcp/dhcpd.leases.
+
+# sudo systemctl enable isc-dhcp-server
+# sudo systemctl start isc-dhcp-server
+
+2.7 FreeRADIUS Installation and Configuration
+
+If we want to have the login access to the network devices authenticated in centralized manner, FreeRadius is a need. It is cost-free and highly effective solution.
+
+2.7.1 Install and Configure Freeradius
+
+$ sudo apt-get install freeradius
+
+Add the list of the clients into FreeRADIUS configuration with the same shared key test123. Below is the example for  ASAv-I and vIOS-Core-I devices.
+
+# vi /etc/freeradius/clients.conf
+
+client 172.16.0.5/32 {
+ secret = test123
+ shortname = ASAv-I
+ nastype = cisco
+}
+
+client 172.16.0.17/32 {
+ secret = test123
+ shortname = ASAv-I
+ nastype = cisco
+}
+
+client 10.1.1.1/32 {
+ secret = test123
+ shortname = vIOS-Core-I
+ nastype = cisco
+}
+
+Add following lines to the users configuration file as it is shown below. The configuration file is here.
+
+# vi /etc/freeradius/users
+
+# User privilege level 1
+raadmin Cleartext-Password := "racisco"
+Service-Type = NAS-Prompt-User,
+
+# User privilege level 15
+raadmin15 Cleartext-Password := "racisco15"
+Service-Type = NAS-Prompt-User,
+cisco-avpair = "shell:priv-lvl=15"
+
+# Enable password
+$enab15$ Cleartext-Password := "racisco"
+Service-Type = NAS-Prompt-User,
+
+To log authentication requests, change the lines below from no to yes in the file /etc/freeradius/radiusd.conf. By default, logs are stored in the file /var/log/freeradius/radius.log.
+
+# vi /etc/freeradius/radiusd.conf
+
+auth = yes
+
+auth_badpass = yes
+auth_goodpass = yes
+
+Restart FreeRadius service.
+
+# systemctl restart freeradius
+
+
+Note: If you want to check debug messages, stop freeradius service and start it with parameter -X (full debugging).
+
+# freeradius -X
+
+2.8. Syslog-ng Installation and Configuration
+
+We want each device to send logs to one central location. For this purpose, we will install syslog-ng on Server1. The logs are stored inside the directory tree /var/log/syslog-ng/IP/year/month/day where IP is the IP address of a particular device.
+
+$ sudo apt-get install syslog-ng
+$ sudo su
+
+Configure Syslog-ng. Here is the configuration file /etc/syslog-ng/conf.d/firewalls.conf.
+
+# cd /etc/syslog-ng/conf.d
+
+# vi firewalls.conf
+
+options {
+ create_dirs(yes);
+ owner(ubuntu);
+ group(ubuntu);
+ perm(0640);
+ dir_owner(ubuntu);
+ dir_group(ubuntu);
+ dir_perm(0750);
+};
+
+source s_net {
+ tcp(ip(0.0.0.0) port(514));
+ udp(ip(0.0.0.0) port(514));
+};
+
+destination d_host-specific {
+  file("/var/log/firewalls/$HOST/$YEAR/$MONTH/$HOST-$YEAR-$MONTH-$DAY.log");
+};
+
+log {
+ source(s_net);
+ destination(d_host-specific);
+};
+
+# service syslog-ng restart
