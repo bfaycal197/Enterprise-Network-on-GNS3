@@ -1,0 +1,25 @@
+options {
+          create_dirs(yes);
+          owner(ubuntu);
+          group(ubuntu);
+          perm(0640);
+          dir_owner(ubuntu);
+          dir_group(ubuntu);
+          dir_perm(0750);
+   };
+
+
+source s_net {
+          tcp(ip(0.0.0.0) port(514));
+          udp(ip(0.0.0.0) port(514));
+   };
+
+
+destination d_host-specific {
+          file("/var/log/dmz/$HOST/$YEAR/$MONTH/$HOST-$YEAR-$MONTH-$DAY.log");
+   };
+   
+log {
+          source(s_net);
+          destination(d_host-specific);
+   };
