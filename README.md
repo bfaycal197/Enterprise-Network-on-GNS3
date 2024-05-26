@@ -26,4 +26,4 @@ Cliquez sur la photo pour accéder à la vidéo.
 ```
 # Simulation des attaques et des défenses sur cette architecture 
 
-[Cliquez ici](https://docs.google.com/presentation/d/1ProOp1JqXYkL8YiCceG5Y6mm-laJrLwL/edit?usp=drivesdk&ouid=114686872782016159602&rtpof=true&sd=true) - pour voir les différentes attaques leurs contre mesures élaborées.
+[Cliquez ici](https://docs.google.com/presentation/d/1ProOp1JqXYkL8YiCceG5Y6mm-laJrLwL/edit?usp=drivesdk&ouid=114686872782016159602&rtpof=true&sd=true) - pour voir les différentes attaques et leurs contre mesures élaborées.
